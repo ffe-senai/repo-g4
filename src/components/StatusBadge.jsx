@@ -1,4 +1,4 @@
-const LABELS = { APPROVED: 'Aprovada', REJECTED: 'Rejeitada', PENDING: 'Pendente' };
+const LABELS = { APPROVED: 'APROVADA', REJECTED: 'REJEITADA', PENDING: 'PENDENTE' };
 
 export default function StatusBadge({ result }) {
   const key = LABELS[result] ? result : 'PENDING';

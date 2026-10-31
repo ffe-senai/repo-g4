@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createLocalBus } from '../bus.js';
-import { buildScanEvent } from '../events.js';
+import { buildScanEvent, normalizePiece } from '../events.js';
 
 const MAX_HISTORY = 500;
+const byDateDesc = (a, b) => new Date(b.data.scannedAt) - new Date(a.data.scannedAt);
 
-// Ouve o barramento (Shell ou local) e mantém o histórico em memória.
+// Ouve o barramento (Shell ou local) e o evento global `smart40:telemetria`,
+// e mantém o histórico em memória.
 export function useTraceability(externalBus) {
   const localBus = useMemo(() => createLocalBus(), []);
   const bus = externalBus ?? localBus;
@@ -12,18 +14,21 @@ export function useTraceability(externalBus) {
   const [scans, setScans] = useState([]);
   const [connection, setConnection] = useState(null);
   const [machine, setMachine] = useState(null);
-  const seen = useRef({ events: new Set(), pieces: new Set() });
+  const seenEvents = useRef(new Set());
+  const lastPieceRef = useRef(null);
 
-  // Idempotência: mesmo eventId ou mesma peça não entra duas vezes.
+  // Só registra quando o código da peça MUDA (a mesma peça parada na esteira não repete).
   const addScan = useCallback((event) => {
     const { eventId, data } = event;
-    if (seen.current.events.has(eventId) || seen.current.pieces.has(data.pieceId)) return false;
-    seen.current.events.add(eventId);
-    seen.current.pieces.add(data.pieceId);
-    setScans((prev) => [event, ...prev].slice(0, MAX_HISTORY));
+    if (seenEvents.current.has(eventId)) return false;
+    if (data.pieceId === lastPieceRef.current) return false;
+    seenEvents.current.add(eventId);
+    lastPieceRef.current = data.pieceId;
+    setScans((prev) => [event, ...prev].sort(byDateDesc).slice(0, MAX_HISTORY));
     return true;
   }, []);
 
+  // Barramento do Shell
   useEffect(
     () =>
       bus.subscribe((event) => {
@@ -42,6 +47,16 @@ export function useTraceability(externalBus) {
       }),
     [bus, addScan],
   );
+
+  // Telemetria global: detail.ultimaPecaLida
+  useEffect(() => {
+    const onTelemetry = (e) => {
+      const piece = normalizePiece(e.detail?.ultimaPecaLida);
+      if (piece) addScan(buildScanEvent({ ...piece, source: 'gateway' }));
+    };
+    window.addEventListener('smart40:telemetria', onTelemetry);
+    return () => window.removeEventListener('smart40:telemetria', onTelemetry);
+  }, [addScan]);
 
   // Sem Shell (standalone), simula a conexão para o indicador.
   useEffect(() => {
@@ -62,9 +77,9 @@ export function useTraceability(externalBus) {
       const code = input.code?.trim();
       if (!code) return { ok: false, invalid: true };
       const event = buildScanEvent({ ...input, code });
-      const ok = addScan(event);
-      if (ok) bus.publish(event);
-      return { ok, event };
+      if (!addScan(event)) return { ok: false, duplicate: true };
+      bus.publish(event);
+      return { ok: true, event };
     },
     [bus, addScan],
   );

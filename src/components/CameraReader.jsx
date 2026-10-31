@@ -6,16 +6,16 @@ const REPEAT_WINDOW_MS = 3000; // ignora o mesmo QR lido várias vezes seguidas
 
 export default function CameraReader({ onScan }) {
   const [active, setActive] = useState(false);
-  const [defaultResult, setDefaultResult] = useState('APPROVED');
+  const [quality, setQuality] = useState('100');
   const scannerRef = useRef(null);
   const lastScanRef = useRef({ text: '', at: 0 });
   const onScanRef = useRef(onScan);
-  const resultRef = useRef(defaultResult);
+  const qualityRef = useRef(100);
 
   useEffect(() => {
     onScanRef.current = onScan;
-    resultRef.current = defaultResult;
-  }, [onScan, defaultResult]);
+    qualityRef.current = Number(quality);
+  }, [onScan, quality]);
 
   // Desliga a câmera ao desmontar (Shell troca de módulo)
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function CameraReader({ onScan }) {
           const last = lastScanRef.current;
           if (decodedText === last.text && now - last.at < REPEAT_WINDOW_MS) return;
           lastScanRef.current = { text: decodedText, at: now };
-          onScanRef.current({ code: decodedText, result: resultRef.current });
+          onScanRef.current({ code: decodedText, quality: qualityRef.current });
         },
         () => {}, // frame sem QR: ignorar
       );
@@ -69,12 +69,8 @@ export default function CameraReader({ onScan }) {
       </div>
 
       <label className="g4-inline">
-        Resultado ao ler
-        <select value={defaultResult} onChange={(e) => setDefaultResult(e.target.value)}>
-          <option value="APPROVED">Aprovada</option>
-          <option value="REJECTED">Rejeitada</option>
-          <option value="PENDING">Pendente</option>
-        </select>
+        Qualidade atribuída à leitura (%)
+        <input type="number" min="0" max="100" value={quality} onChange={(e) => setQuality(e.target.value)} />
       </label>
 
       <div className="g4-row">

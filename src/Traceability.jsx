@@ -17,6 +17,7 @@ const MACHINE_ALERTS = ['ALARM', 'SAFETY_FAULT', 'EMERGENCY'];
 /**
  * Módulo G4 (exposto via Module Federation).
  * Prop `bus` (opcional): { subscribe(handler) => unsubscribe, publish(event) }.
+ * Também escuta o evento global `smart40:telemetria` (detail.ultimaPecaLida).
  * Sem `bus`, funciona sozinho com um barramento local.
  */
 export default function Traceability({ bus }) {
@@ -32,8 +33,15 @@ export default function Traceability({ bus }) {
   function handleRegister(input) {
     const r = register(input);
     const code = input.code?.trim();
-    if (r.ok) setNotice({ ok: true, text: `Peça ${code} registrada` });
-    else setNotice({ ok: false, text: r.invalid ? 'Informe o ID da peça' : `Peça ${code} já registrada` });
+    if (r.ok) {
+      const { result, quality } = r.event.data;
+      setNotice({ ok: true, text: `Peça ${code} registrada: ${result === 'APPROVED' ? 'APROVADA' : 'REJEITADA'} (${quality}%)` });
+    } else {
+      setNotice({
+        ok: false,
+        text: r.invalid ? 'Informe o ID da peça' : `Peça ${code} é a mesma da última leitura (ignorada)`,
+      });
+    }
     return r;
   }
 

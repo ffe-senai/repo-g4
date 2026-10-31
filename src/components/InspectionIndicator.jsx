@@ -1,8 +1,11 @@
+import { QUALITY_THRESHOLD } from '../events.js';
+
 const LABELS = { APPROVED: 'APROVADA', REJECTED: 'REJEITADA', PENDING: 'PENDENTE' };
 
 // Sinalização grande da última peça inspecionada.
 export default function InspectionIndicator({ last }) {
   const result = last?.data.result;
+  const quality = last?.data.quality;
   const key = result && LABELS[result] ? result.toLowerCase() : 'idle';
 
   return (
@@ -11,7 +14,11 @@ export default function InspectionIndicator({ last }) {
       {last && (
         <>
           <div className="g4-inspect-piece">{last.data.pieceId}</div>
-          {last.data.reason && <div className="g4-inspect-reason">{last.data.reason}</div>}
+          {quality !== undefined && (
+            <div className="g4-inspect-reason">
+              Qualidade: {quality}% (mínimo {QUALITY_THRESHOLD}%)
+            </div>
+          )}
         </>
       )}
     </div>

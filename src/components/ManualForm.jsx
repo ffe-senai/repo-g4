@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { QUALITY_THRESHOLD, resultFromQuality } from '../events.js';
 
 export default function ManualForm({ onSubmit }) {
   const [code, setCode] = useState('');
   const [lotId, setLotId] = useState('');
-  const [result, setResult] = useState('APPROVED');
-  const [reason, setReason] = useState('');
+  const [quality, setQuality] = useState('100');
+
+  const preview = resultFromQuality(quality) === 'APPROVED' ? 'APROVADA' : 'REJEITADA';
 
   function handleSubmit(e) {
     e.preventDefault();
-    const r = onSubmit({ code, lotId: lotId.trim(), result, reason: result === 'REJECTED' ? reason.trim() : '' });
+    const r = onSubmit({ code, lotId: lotId.trim(), quality: Number(quality) });
     if (r.ok) setCode('');
   }
 
@@ -18,28 +20,28 @@ export default function ManualForm({ onSubmit }) {
       <form onSubmit={handleSubmit} className="g4-form">
         <label>
           ID da peça (conteúdo do QR)
-          <input required value={code} onChange={(e) => setCode(e.target.value)} placeholder="Ex: P-1001" />
+          <input required value={code} onChange={(e) => setCode(e.target.value)} placeholder="Ex: PECA-8831" />
         </label>
         <div className="g4-row">
           <label>
-            Resultado
-            <select value={result} onChange={(e) => setResult(e.target.value)}>
-              <option value="APPROVED">Aprovada</option>
-              <option value="REJECTED">Rejeitada</option>
-              <option value="PENDING">Pendente</option>
-            </select>
+            Qualidade (%)
+            <input
+              type="number"
+              required
+              min="0"
+              max="100"
+              value={quality}
+              onChange={(e) => setQuality(e.target.value)}
+            />
           </label>
           <label>
             Lote
             <input value={lotId} onChange={(e) => setLotId(e.target.value)} placeholder="LOT-A1" />
           </label>
         </div>
-        {result === 'REJECTED' && (
-          <label>
-            Motivo
-            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex: QR ilegível" />
-          </label>
-        )}
+        <p className="g4-sub">
+          Resultado: {preview} (aprova com {QUALITY_THRESHOLD}% ou mais)
+        </p>
         <button type="submit" className="g4-btn g4-btn--primary">
           Registrar leitura
         </button>
