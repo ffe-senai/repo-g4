@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createLocalBus } from '../bus.js';
-import { buildScanEvent, normalizePiece } from '../events.js';
+import { buildScanEvent, extractPiece } from '../events.js';
 
 const MAX_HISTORY = 500;
 const byDateDesc = (a, b) => new Date(b.data.scannedAt) - new Date(a.data.scannedAt);
 
-// Ouve o barramento (Shell ou local) e o evento global `smart40:telemetria`,
-// e mantém o histórico em memória.
+// Ouve o evento global `smart40:telemetria` (leitura RFID em esteira.pecaAtual)
+// e o barramento do Shell, e mantém o histórico em memória.
 export function useTraceability(externalBus) {
   const localBus = useMemo(() => createLocalBus(), []);
   const bus = externalBus ?? localBus;
@@ -17,7 +17,7 @@ export function useTraceability(externalBus) {
   const seenEvents = useRef(new Set());
   const lastPieceRef = useRef(null);
 
-  // Só registra quando o código da peça MUDA (a mesma peça parada na esteira não repete).
+  // Só registra quando a tag da peça MUDA (a mesma peça parada na esteira não repete).
   const addScan = useCallback((event) => {
     const { eventId, data } = event;
     if (seenEvents.current.has(eventId)) return false;
@@ -48,10 +48,10 @@ export function useTraceability(externalBus) {
     [bus, addScan],
   );
 
-  // Telemetria global: detail.ultimaPecaLida
+  // Telemetria global (o Shell abre o WebSocket; nós só escutamos)
   useEffect(() => {
     const onTelemetry = (e) => {
-      const piece = normalizePiece(e.detail?.ultimaPecaLida);
+      const piece = extractPiece(e.detail);
       if (piece) addScan(buildScanEvent({ ...piece, source: 'gateway' }));
     };
     window.addEventListener('smart40:telemetria', onTelemetry);
@@ -71,7 +71,7 @@ export function useTraceability(externalBus) {
     });
   }, [externalBus, localBus]);
 
-  // Leitura local (câmera ou manual): registra e publica no barramento.
+  // Leitura simulada (formulário de teste): registra e publica no barramento.
   const register = useCallback(
     (input) => {
       const code = input.code?.trim();

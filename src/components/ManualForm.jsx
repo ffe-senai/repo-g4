@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { QUALITY_THRESHOLD, resultFromQuality } from '../events.js';
 
+// Simulador: serve para testar o módulo sem a máquina e sem o leitor RFID.
 export default function ManualForm({ onSubmit }) {
   const [code, setCode] = useState('');
   const [lotId, setLotId] = useState('');
@@ -16,10 +17,10 @@ export default function ManualForm({ onSubmit }) {
 
   return (
     <div className="g4-card">
-      <h2>Entrada manual (backup)</h2>
+      <h2>Simular leitura RFID (teste)</h2>
       <form onSubmit={handleSubmit} className="g4-form">
         <label>
-          ID da peça (conteúdo do QR)
+          Tag RFID / ID da peça
           <input required value={code} onChange={(e) => setCode(e.target.value)} placeholder="Ex: PECA-8831" />
         </label>
         <div className="g4-row">

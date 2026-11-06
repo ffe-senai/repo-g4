@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import './traceability.css';
-import CameraReader from './components/CameraReader.jsx';
 import ManualForm from './components/ManualForm.jsx';
 import HistoryTable from './components/HistoryTable.jsx';
 import InspectionIndicator from './components/InspectionIndicator.jsx';
@@ -16,8 +15,8 @@ const MACHINE_ALERTS = ['ALARM', 'SAFETY_FAULT', 'EMERGENCY'];
 
 /**
  * Módulo G4 (exposto via Module Federation).
+ * Lê a tag RFID da telemetria global `smart40:telemetria` (esteira.pecaAtual).
  * Prop `bus` (opcional): { subscribe(handler) => unsubscribe, publish(event) }.
- * Também escuta o evento global `smart40:telemetria` (detail.ultimaPecaLida).
  * Sem `bus`, funciona sozinho com um barramento local.
  */
 export default function Traceability({ bus }) {
@@ -39,7 +38,7 @@ export default function Traceability({ bus }) {
     } else {
       setNotice({
         ok: false,
-        text: r.invalid ? 'Informe o ID da peça' : `Peça ${code} é a mesma da última leitura (ignorada)`,
+        text: r.invalid ? 'Informe a tag da peça' : `Peça ${code} é a mesma da última leitura (ignorada)`,
       });
     }
     return r;
@@ -58,7 +57,7 @@ export default function Traceability({ bus }) {
       <header className="g4-header">
         <div>
           <h1 className="g4-title">Estação de Rastreabilidade & Qualidade</h1>
-          <p className="g4-sub">Grupo 4 • Leitura de QR Code, lote e inspeção</p>
+          <p className="g4-sub">Grupo 4 • Leitura RFID, lote e inspeção</p>
         </div>
         <div className="g4-conn">
           <span className={`g4-dot g4-dot--${conn.dot}`} />
@@ -76,7 +75,6 @@ export default function Traceability({ bus }) {
       <main className="g4-grid">
         <section className="g4-col">
           <InspectionIndicator last={scans[0]} />
-          <CameraReader onScan={handleRegister} />
           <ManualForm onSubmit={handleRegister} />
         </section>
         <section className="g4-col">

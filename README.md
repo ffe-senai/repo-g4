@@ -1,12 +1,12 @@
-# 🏭 SMART 4.0 – Módulo G4: Rastreabilidade & QR Code
+# 🏭 SMART 4.0 – Módulo G4: Rastreabilidade (RFID)
 
-Módulo do **Grupo 4** da Estação SMART 4.0. É o inspetor de qualidade da esteira: acompanha as peças que passam, registra cada uma no histórico e mostra se foi **aprovada** ou **rejeitada**. Funciona como um **remote de Module Federation**, carregado pelo App Shell do Grupo 1.
+Módulo do **Grupo 4** da Estação SMART 4.0. É o inspetor de qualidade da esteira: acompanha a **tag RFID** das peças que passam, registra cada uma no histórico e mostra se foi **aprovada** ou **rejeitada**. Funciona como um **remote de Module Federation**, carregado pelo App Shell do Grupo 1.
 
 ---
 
 ## 📚 Objetivo do Projeto
 
-* Registrar uma nova linha no histórico **sempre que o código da peça mudar** (ex.: `PECA-8831`)
+* Registrar uma nova linha no histórico **sempre que a tag da peça mudar** (ex.: `PECA-8831`)
 * Classificar a peça pela **qualidade**: etiqueta **verde (APROVADA)** se for **≥ 80%** e **vermelha (REJEITADA)** se for **< 80%**
 * Evitar duplicatas: a mesma peça parada na esteira não é registrada várias vezes seguidas
 * Manter o histórico **ordenado por data/hora** (mais recentes primeiro)
@@ -15,23 +15,22 @@ Módulo do **Grupo 4** da Estação SMART 4.0. É o inspetor de qualidade da est
 
 ## 🗺️ Funcionalidades
 
-* 📡 **Telemetria da esteira:** escuta o evento global `smart40:telemetria` (`detail.ultimaPecaLida`)
-* 📷 **Leitor de câmera QR:** o conteúdo do QR é o ID da peça (para teste sem a máquina)
-* ⌨️ **Entrada manual:** ID, qualidade (%) e lote, com prévia do resultado
+* 📡 **Leitura RFID pela telemetria:** escuta o evento global `smart40:telemetria` e lê `esteira.pecaAtual`
 * 🚦 **Indicador de inspeção:** painel grande com a última peça, a qualidade e o resultado
-* 📋 **Tabela de histórico:** hora, ID, lote, origem, qualidade e etiqueta colorida
+* 📋 **Tabela de histórico:** hora, tag, lote, origem, qualidade e etiqueta colorida
+* 🧪 **Simulador:** formulário para testar sem a máquina e sem o leitor RFID
 * 🔌 **Conexão e máquina:** aviso de emergência, alarme ou falha de segurança
 
 ---
 
 ## 📡 Dados e Eventos
 
-* **Telemetria global:** `window` → `smart40:telemetria` com `detail.ultimaPecaLida`
-  * ID da peça: `idPeca` (ou `id`)
-  * Qualidade: `qualidade` (0 a 100)
-  * Opcionais: `lote`, `timestamp`
+* **Telemetria global:** `window` → `smart40:telemetria` (o App Shell abre o WebSocket; o módulo só escuta)
+  * Tag RFID: `esteira.pecaAtual` (texto ou objeto com `idPeca`/`rfidTag`)
+  * Qualidade (0 a 100): `qualidade` na peça, ou `esteira.qualidade`
+  * Também aceita `ultimaPecaLida`
 * **Barramento (Module Federation):** consome `traceability.piece-scanned`, `connection.state` e `machine.telemetry`
-* **Publica:** `traceability.piece-scanned` (contrato v0.1.0) com `result` calculado e `quality` extra, a cada leitura local
+* **Publica:** `traceability.piece-scanned` (contrato v0.1.0) com `result` calculado e `quality` extra, a cada leitura simulada
 
 > ⚠️ Projeto em modo **simulação**. Nenhum comando é enviado ao CLP, ao robô ou à planta física.
 
@@ -42,7 +41,6 @@ Módulo do **Grupo 4** da Estação SMART 4.0. É o inspetor de qualidade da est
 * **React 19**
 * **Vite**
 * **Module Federation** (`@module-federation/vite`)
-* **html5-qrcode** (leitura de QR pela câmera)
 * **CSS puro**, escopado em `.g4` para não afetar o Shell
 
 ---
@@ -58,13 +56,14 @@ npm run dev
 
 > 🔗 http://localhost:8083
 
-> ⚠️ A câmera só funciona em `localhost` ou em **HTTPS**.
-
 Para testar a telemetria sem a máquina, cole no console do navegador:
 
 ```js
 window.dispatchEvent(new CustomEvent('smart40:telemetria', {
-  detail: { ultimaPecaLida: { idPeca: 'PECA-8831', qualidade: 92 } },
+  detail: {
+    timestamp: new Date().toISOString(),
+    esteira: { motorLigado: true, pecaAtual: 'PECA-8831', qualidade: 92 },
+  },
 }));
 ```
 
@@ -102,10 +101,10 @@ const Traceability = lazy(() => import('smart40_g4/Traceability'));
 
 ## ☁️ Deploy
 
-Hospedado na **Vercel** (o `vercel.json` libera CORS para o `remoteEntry.js`). Em produção, o `entry` do host passa a ser:
+Hospedado na **Vercel** (o `vercel.json` libera CORS para o `remoteEntry.js`). Em produção, o `entry` do host é:
 
 ```
-https://SEU-PROJETO.vercel.app/remoteEntry.js
+https://rastreabilidade-qrcode.vercel.app/remoteEntry.js
 ```
 
 ---
@@ -116,10 +115,10 @@ https://SEU-PROJETO.vercel.app/remoteEntry.js
 rastreabilidade-qrcode/
 ├── src/
 │   ├── Traceability.jsx        # componente exposto ao Shell
-│   ├── components/             # CameraReader, ManualForm, HistoryTable, ...
+│   ├── components/             # ManualForm, HistoryTable, InspectionIndicator, StatusBadge
 │   ├── hooks/useTraceability.js
 │   ├── bus.js                  # barramento local (modo standalone)
-│   ├── events.js               # regra de qualidade e montagem dos eventos
+│   ├── events.js               # leitura da telemetria, regra de qualidade e eventos
 │   ├── contract/               # contrato-smart40-v0_1.ts
 │   ├── traceability.css
 │   └── main.jsx                # entrada standalone
